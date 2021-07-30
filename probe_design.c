@@ -4,27 +4,36 @@
 
 // Author: Lalitha Viswanathan
 // Org: Tata Consultancy Services
-long cdna,tdna,size,qdna;
-char *DNA,*CDNA,*QDNA,*TDNA;
+long cdnalength,testgenelength,sizeofDNAStringignoringjunkchars,qdna;
+char *DNA,*CDNA,*QDNA,*TESTGENE;
 float crossreactivity;
+# define NUMARGS 7
 
 int main(int argc,char* argv[])
 {
-	long temp,line,i,start,stop,j,length;
+	long sizeoffnafile,line,i,start,stop,j,length;
 	float len;
 	int counter,new_counter,sub_counter,flag,probe_counter,in_counter;
 	char* location,*possible_probe,*test_probe;
 	FILE *filehandlefnafile,*filepointer1stfile,*filepointer2ndfile,*filepointerresultsfile;
-	long strt,stp,strt2=-1,stp2=-1;
+	long startpos,stoppos,start2=-1,stop2=-1;
 	char stri[1000],*str,strn;
-	char gfile[100],pfile[100],tfile[100],ch;
-	if(argc!=7)
+	char genefile[100],probefile[100],tfile[100],DNAChar;
+	// A .ptt file is an NCBI Protein Table file, 
+	// which is a tab delimited file containing a list of all the proteins for their genomes 
+	// (ftp://ftp.ncbi.nih.gov/genomes/). 
+	// It corresponds with the CDS annotations from the GenBank file and can be created by 
+	// parsing the GenBank files and writing the appropriate output.
+
+	// The columns are :
+	// Location    Strand    Length    PID    Gene    Synonym    Code    COG    Product
+	if(argc!=NUMARGS)
 	{
 		printf("\n probedesign <fna file of genome> <pttfile of genome> <length of probe required> <%%crossreactivity allowed> <%% to be left on either side> <file containing gene for which probe is designed>\n");
 		exit(1);
 	}
-	strcpy(gfile,argv[1]);
-	strcpy(pfile,argv[2]);
+	strcpy(genefile,argv[1]);
+	strcpy(probefile,argv[2]);
 	length=atoi(argv[3]);
 	crossreactivity=atof(argv[4]);
 	len=atof(argv[5]);
@@ -32,61 +41,62 @@ int main(int argc,char* argv[])
 	filepointerresultsfile=fopen("probes.txt","w+");
 	possible_probe=(char *)malloc(sizeof(char)*len);
 	test_probe=(char *)malloc(sizeof(char)*len);
-	if(!(filehandlefnafile=fopen(gfile,"r")))
+	if(!(filehandlefnafile=fopen(genefile,"r")))
 	{
-			printf("File %s does not exist\n",gfile);
+			printf("File %s does not exist\n",genefile);
 			exit(1);
 	}
 	 fseek(filehandlefnafile,0L,SEEK_END);
-         temp=ftell(filehandlefnafile);
-         DNA=(char *)malloc(sizeof(char)*temp);
-         CDNA=(char *)malloc(sizeof(char)*temp);
-         QDNA=(char *)malloc(sizeof(char)*temp);
-         TDNA=(char *)malloc(sizeof(char)*temp);
-	 size=1;
+         sizeoffnafile=ftell(filehandlefnafile);
+         DNA=(char *)malloc(sizeof(char)*sizeoffnafile);
+         CDNA=(char *)malloc(sizeof(char)*sizeoffnafile);
+         QDNA=(char *)malloc(sizeof(char)*sizeoffnafile);
+         TESTGENE=(char *)malloc(sizeof(char)*sizeoffnafile);
+	 sizeofDNAStringignoringjunkchars=1;
 	 rewind(filehandlefnafile);
 	 fgets(stri,500,filehandlefnafile);
 	 while(!feof(filehandlefnafile))
 	 {
-		 ch=fgetc(filehandlefnafile);
-		 if((isalpha(ch)) && ((ch=='A')||(ch=='T')||(ch=='G')||(ch=='C')))
-				 DNA[size++]=ch;
+		 DNAChar=fgetc(filehandlefnafile);
+		 // Ignore junk characters
+		 if((isalpha(DNAChar)) && ((DNAChar=='A')||(DNAChar=='T')||(DNAChar=='G')||(DNAChar=='C')))
+				 DNA[sizeofDNAStringignoringjunkchars++]=DNAChar;
 	 }//end of while
 	fclose(filehandlefnafile);
-	printf("Size of the genome =%ld(bp)\n",size);
+	printf("Size of the genome =%ld(bp)\n",sizeofDNAStringignoringjunkchars);
 	//size is size of fna file	
 	if(!(filehandlefnafile=fopen(tfile,"r")))
 	{
 			printf("File %s does not exist\n",tfile);
 			exit(1);
 	}
-	 tdna=1;
+	 testgenelength=1;
 	 rewind(filehandlefnafile);
 	 fgets(stri,500,filehandlefnafile);
 	 while(!feof(filehandlefnafile))
 	 {
-		 ch=fgetc(filehandlefnafile);
-		 if(isalpha(ch))
-			 if((ch=='A')||(ch=='T')||(ch=='G')||(ch=='C'))
-				 TDNA[tdna++]=ch;
+		 DNAChar=fgetc(filehandlefnafile);
+		 if(isalpha(DNAChar))
+			 if((DNAChar=='A')||(DNAChar=='T')||(DNAChar=='G')||(DNAChar=='C'))
+				 TESTGENE[testgenelength++]=DNAChar;
 	}//end of while
 	fclose(filehandlefnafile);
-	printf("Size of the test gene =%ld(bp)\n",tdna);
+	printf("Size of the test gene =%ld(bp)\n",testgenelength);
 	//beginning of function for checking for probe
 	//len tells how much to leave 
-	for(counter=0;counter<tdna-((len/100)*tdna);counter++)
+	for(counter=0;counter<testgenelength-((len/100)*testgenelength);counter++)
 	{
-		new_counter=counter+((len/100)*tdna);
+		new_counter=counter+((len/100)*testgenelength);
 		probe_counter=0;
 		for(in_counter=new_counter;in_counter<new_counter+length;in_counter++)
-			possible_probe[probe_counter++]=TDNA[in_counter];
+			possible_probe[probe_counter++]=TESTGENE[in_counter];
 		possible_probe[probe_counter]='\0';
-		if(!(filehandlefnafile=fopen(pfile,"r")))
+		if(!(filehandlefnafile=fopen(probefile,"r")))
 		{
-			printf("File %s does not exist\n",pfile);
+			printf("File %s does not exist\n",probefile);
 			exit(1);
 		}
-		temp=1;
+		sizeoffnafile=1;
 		line=1;
 	 	while(1)
 	 	{
@@ -98,16 +108,16 @@ int main(int argc,char* argv[])
 		 line++;
 		 if(line>6)
 		  {
-		  cdna=0;qdna=0;
-		  sscanf(stri,"%ld..%ld %c %*s %*s %*s %*s %*s %*s \n",&strt,&stp,&strn);
+		  cdnalength=0;qdna=0;
+		  sscanf(stri,"%ld..%ld %c %*s %*s %*s %*s %*s %*s \n",&startpos,&stoppos,&strn);
 			if(strn=='+')
 			{
 			flag=0;
-			if (strt<stp)
+			if (startpos<stoppos)
 			{
-			for(temp=strt;temp<=stp-3;temp++)
-				CDNA[cdna++]=DNA[temp];
-			for(sub_counter=0;sub_counter<cdna;sub_counter++)
+			for(sizeoffnafile=startpos;sizeoffnafile<=stoppos-3;sizeoffnafile++)
+				CDNA[cdnalength++]=DNA[sizeoffnafile];
+			for(sub_counter=0;sub_counter<cdnalength;sub_counter++)
 			{
 			probe_counter=0;
 			for(in_counter=sub_counter;in_counter<sub_counter+length;in_counter++)
@@ -127,9 +137,9 @@ int main(int argc,char* argv[])
 			}}
 			else if(strn=='-')
 			{
-				for(temp=strt+3;temp<=stp;temp++)
-					QDNA[qdna++]=DNA[temp];
-				for(sub_counter=0;sub_counter<cdna;sub_counter++)
+				for(sizeoffnafile=startpos+3;sizeoffnafile<=stoppos;sizeoffnafile++)
+					QDNA[qdna++]=DNA[sizeoffnafile];
+				for(sub_counter=0;sub_counter<cdnalength;sub_counter++)
 				{
 				probe_counter=0;
 				for(in_counter=sub_counter;in_counter<sub_counter+length;in_counter++)
@@ -147,9 +157,9 @@ int main(int argc,char* argv[])
 				if(flag)
 					fprintf(filepointerresultsfile,"%s \n",possible_probe);
 			}
-	   		stp2=stp;
+	   		stop2=stoppos;
 			probe_counter=0;
-  		}//end of temp>6
+  		}//end of line >6
 	}//end of while
 	}
 	free(DNA);
@@ -167,9 +177,13 @@ int check_for_crossreactivity(char* sequence1, char* sequence2)
 				matches++;
 			else
 				mismatches++;
-		}	
+		}
+		// cross reactivity is defined as 2m - mm to uniqueness of cleavage site
+		// to ensure that probe does not splice gene at multiple locations 
+		// Defined here as 2matches - mismatches
+		// 2*matches - mismatches
 		score=matches*2 - mismatches*1;
-		if((score/tdna)*100>crossreactivity)
+		if((score/testgenelength)*100>crossreactivity)
 				return 0;
 		else
 				return 1;
